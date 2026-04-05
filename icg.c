@@ -3,7 +3,7 @@
 
 #define MAX 100
 
-char code[MAX][50];
+char code[MAX][100];   // 🔥 FIXED SIZE
 int line = 0;
 int tempCount = 1;
 int labelCount = 1;
@@ -26,7 +26,6 @@ char* generateTemp(char *arg1, char *op, char *arg2) {
 
     char arg1Copy[20], arg2Copy[20];
 
-    // 🔥 copy to avoid overwrite bug
     strcpy(arg1Copy, arg1);
     strcpy(arg2Copy, arg2);
 
@@ -37,10 +36,13 @@ char* generateTemp(char *arg1, char *op, char *arg2) {
 
     line++;
 
-    return temps[tempCount++];   // safe return
+    char* temp = temps[tempCount];   // 🔥 FIXED RETURN
+    tempCount++;
+
+    return temp;
 }
 
-// 🔥 generate label (for if-else)
+// 🔥 generate label
 char* newLabel() {
 
     if(labelCount >= MAX) {
@@ -52,7 +54,7 @@ char* newLabel() {
     return labels[labelCount++];
 }
 
-// 🔥 emit custom instruction (for jumps etc.)
+// 🔥 emit custom instruction
 void emit(char *instruction) {
 
     if(line >= MAX) {
@@ -61,6 +63,13 @@ void emit(char *instruction) {
     }
 
     strcpy(code[line++], instruction);
+}
+
+// 🔥 reset (IMPORTANT)
+void resetICG() {
+    line = 0;
+    tempCount = 1;
+    labelCount = 1;
 }
 
 // print 3-address code

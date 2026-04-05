@@ -6,9 +6,9 @@
 Token tokens[MAX_TOKENS];
 int tokenCount = 0;
 
-// UPDATED KEYWORDS
-char keywords[][10] = {"int", "if", "else", "while"};
-int keywordCount = 4;
+// 🔥 UPDATED KEYWORDS
+char keywords[][10] = {"int", "if", "else", "while", "for"};
+int keywordCount = 5;
 
 // check if keyword
 int isKeyword(char *str) {
@@ -35,12 +35,11 @@ void addToken(char *type, char *value) {
 void tokenize(char *input) {
 
     tokenCount = 0;   // reset tokens
-
     int i = 0;
 
     while(input[i] != '\0') {
 
-        // skip spaces
+        // 🔹 skip spaces
         if(isspace(input[i])) {
             i++;
             continue;
@@ -79,13 +78,21 @@ void tokenize(char *input) {
             addToken("NUM", buffer);
         }
 
-        // 🔥 RELATIONAL OPERATORS (IMPORTANT)
-        else if(input[i] == '<' || input[i] == '>' || input[i] == '=' || input[i] == '!') {
-            char op[3] = {0};
+        // 🔥 LOGICAL OPERATORS (&&, ||)
+        else if(input[i] == '&' && input[i+1] == '&') {
+            addToken("OP", "&&");
+            i += 2;
+        }
+        else if(input[i] == '|' && input[i+1] == '|') {
+            addToken("OP", "||");
+            i += 2;
+        }
 
+        // 🔥 RELATIONAL OPERATORS (<, >, <=, >=, ==)
+        else if(input[i] == '<' || input[i] == '>' || input[i] == '=') {
+            char op[3] = {0};
             op[0] = input[i];
 
-            // check for 2-char operators (<=, >=, ==, !=)
             if(input[i+1] == '=') {
                 op[1] = '=';
                 i++;
@@ -95,14 +102,28 @@ void tokenize(char *input) {
             i++;
         }
 
-        // 🔹 other operators + parentheses
-        else if(strchr("+-*/();", input[i])) {
+        // 🔥 NOT and !=
+        else if(input[i] == '!') {
+            char op[3] = {0};
+            op[0] = '!';
+
+            if(input[i+1] == '=') {
+                op[1] = '=';
+                i++;
+            }
+
+            addToken("OP", op);
+            i++;
+        }
+
+        // 🔹 arithmetic + punctuation
+        else if(strchr("+-*/();{}", input[i])) {
             char op[2] = {input[i], '\0'};
             addToken("OP", op);
             i++;
         }
 
-        // unknown character
+        // ❌ unknown character
         else {
             printf("Unknown character: %c\n", input[i]);
             i++;

@@ -10,9 +10,11 @@ char* expr();
 char* term();
 char* factor();
 char* relExpr();
+char* boolExpr();     // 🔥 NEW
 void stmt();
 void ifStatement();
-void whileStatement();   // 🔥 NEW
+void whileStatement();
+void forStatement();  // 🔥 NEW
 
 int pos = 0;
 
@@ -118,17 +120,37 @@ char* relExpr() {
     return left;
 }
 
+// ================= LOGICAL =================
+char* boolExpr() {
+    char *left = relExpr();
+
+    while(pos < tokenCount &&
+         (strcmp(tokens[pos].value, "&&") == 0 ||
+          strcmp(tokens[pos].value, "||") == 0)) {
+
+        char op[3];
+        strcpy(op, tokens[pos].value);
+        pos++;
+
+        char *right = relExpr();
+
+        left = generateTemp(left, op, right);
+    }
+
+    return left;
+}
+
 // ================= IF-ELSE =================
 void ifStatement() {
 
-    pos++;
+    pos++; // skip if
 
     if(pos >= tokenCount || strcmp(tokens[pos].value, "(") != 0)
         error("Expected '('");
 
     pos++;
 
-    char *cond = relExpr();
+    char *cond = boolExpr();  // 🔥 UPDATED
 
     if(pos >= tokenCount || strcmp(tokens[pos].value, ")") != 0)
         error("Expected ')'");
@@ -160,18 +182,16 @@ void ifStatement() {
     emit(buffer);
 }
 
-// ================= WHILE LOOP =================
-// while (cond) stmt
+// ================= WHILE =================
 void whileStatement() {
 
-    pos++; // skip 'while'
+    pos++; // skip while
 
-    char *L1 = newLabel();  // loop start
-    char *L2 = newLabel();  // exit
+    char *L1 = newLabel();
+    char *L2 = newLabel();
 
     char buffer[50];
 
-    // 🔥 start label
     sprintf(buffer, "%s:", L1);
     emit(buffer);
 
@@ -180,28 +200,119 @@ void whileStatement() {
 
     pos++;
 
-    char *cond = relExpr();
+    char *cond = boolExpr();  // 🔥 UPDATED
 
     if(pos >= tokenCount || strcmp(tokens[pos].value, ")") != 0)
         error("Expected ')'");
 
     pos++;
 
-    // 🔥 condition check
     sprintf(buffer, "ifFalse %s goto %s", cond, L2);
     emit(buffer);
 
-    stmt();  // loop body
+    stmt();
 
-    // 🔥 jump back to start
     sprintf(buffer, "goto %s", L1);
     emit(buffer);
 
-    // 🔥 exit label
     sprintf(buffer, "%s:", L2);
     emit(buffer);
 }
 
+// ================= FOR LOOP =================
+void forStatement() {
+
+    pos++; // skip for
+
+    if(pos >= tokenCount || strcmp(tokens[pos].value, "(") != 0)
+        error("Expected '(' after for");
+
+    pos++;
+
+    char buffer[100];
+
+    // 🔹 INIT
+    char var[20];
+    strcpy(var, tokens[pos].value);
+    pos++;
+
+    if(strcmp(tokens[pos].value, "=") != 0)
+        error("Expected '=' in for init");
+    pos++;
+
+    char *val = expr();
+
+    sprintf(buffer, "%s = %s", var, val);
+    emit(buffer);
+
+    if(strcmp(tokens[pos].value, ";") != 0)
+        error("Expected ';'");
+    pos++;
+
+    // 🔹 LABELS
+    char *L1 = newLabel();
+    char *L2 = newLabel();
+
+    sprintf(buffer, "%s:", L1);
+    emit(buffer);
+
+    // 🔹 CONDITION
+    char *cond = boolExpr();
+
+    if(strcmp(tokens[pos].value, ";") != 0)
+        error("Expected ';'");
+    pos++;
+
+    sprintf(buffer, "ifFalse %s goto %s", cond, L2);
+    emit(buffer);
+
+    // 🔥 SAVE increment range properly
+    int incStart = pos;
+
+    while(pos < tokenCount && strcmp(tokens[pos].value, ")") != 0) {
+        pos++;
+    }
+
+    int incEnd = pos;   // 🔥 important
+
+    if(strcmp(tokens[pos].value, ")") != 0)
+        error("Expected ')'");
+    pos++;
+
+    // 🔹 BODY
+    stmt();
+
+    // 🔥 PARSE INCREMENT (SAFE WAY)
+    int tempPos = incStart;
+    pos = tempPos;
+
+    char incVar[20];
+    strcpy(incVar, tokens[pos].value);
+    pos++;
+
+    if(strcmp(tokens[pos].value, "=") != 0)
+        error("Expected '=' in increment");
+    pos++;
+
+    char *incExpr = expr();
+
+    char incBuffer[50];
+    sprintf(incBuffer, "%s = %s", incVar, incExpr);
+    emit(incBuffer);
+
+    // 🔥 RESTORE POSITION CORRECTLY
+    pos = incEnd + 1;
+
+    // 🔹 LOOP BACK
+    sprintf(buffer, "goto %s", L1);
+    emit(buffer);
+
+    // 🔹 EXIT
+    sprintf(buffer, "%s:", L2);
+    emit(buffer);
+}
+
+    
 // ================= STATEMENT =================
 void stmt() {
 
@@ -211,9 +322,15 @@ void stmt() {
         return;
     }
 
-    // 🔹 WHILE 🔥
+    // 🔹 WHILE
     if(pos < tokenCount && strcmp(tokens[pos].value, "while") == 0) {
         whileStatement();
+        return;
+    }
+
+    // 🔹 FOR 🔥
+    if(pos < tokenCount && strcmp(tokens[pos].value, "for") == 0) {
+        forStatement();
         return;
     }
 
